@@ -1,0 +1,42 @@
+<?php
+    
+    function formatDate($nextOpenTime, $options)
+    {        
+        $datestring = '';
+        $date = getdate($nextOpenTime);
+        $rightnow= getdate();
+        $hourstext = str_pad($date["hours"], 2, '0', STR_PAD_LEFT);
+        $minutestext = str_pad($date["minutes"], 2, '0', STR_PAD_LEFT);
+        if ($date['mday'] == $rightnow['mday']) 
+        {
+            if(isset($options['translation_today']))
+            {
+                $datestring.=$options['translation_today'];
+            }
+            else 
+            {
+                $datestring.= 'Today at ';
+            }
+            $datestring.=' '.$hourstext.':'.$minutestext;
+        }
+        else
+        {            
+            $datestring = $date['weekday'].', '.$hourstext.':'.$minutestext;
+        }                        
+        return $datestring;    
+    }
+    
+    function getDateWithTime($date, $time) 
+    {
+        $hours = substr($time, 0, 2);
+        $minutes = substr($time, 3, 2);
+    
+        $datetime = new DateTime();
+        $datetime->setTimestamp($date);
+        $datetime->setTime($hours, $minutes, 0);
+    
+        return $datetime->getTimestamp();
+    } 
+    
+?>
+
