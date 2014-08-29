@@ -37,6 +37,14 @@
     
         return $datetime->getTimestamp();
     } 
+
+    function getBreakByWeekday($breaks, $weekday){
+        foreach($breaks as $k=>$v){
+            if ($v["day"] == $weekday){
+                return $v;
+            }
+        }
+    }
     
 ?>
 
