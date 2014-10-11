@@ -49,112 +49,130 @@
             add_shortcode('wppizza_otc', 'wppizza_otc_process_shortcode');
         }    
     
+          
+
         function wppizza_otc_process_shortcode($attributes, $content = null) 
         {
             include('inc/helperFunctions.php');
     
-            //register script
-            //wp_enqueue_script('openingwidget.js', plugins_url().'/wppizza-openingtime-shortcode/js/scripts.custom.openingwidget.js', NULL, '0.3');
-    
             //get options
+            $pluginOptions = get_option( 'wppizza_otc_name' );            
             $optionstmp = get_option('wppizza');
             $openingstandard = $optionstmp['opening_times_standard'];   
             $closedstandard =   $optionstmp['times_closed_standard'];   
+            $specialDays =   $optionstmp['opening_times_custom'];   
     
-            $dayIterator = getdate(current_time('timestamp'));
-            $debugContent = '';
-    
-            $sortedArray = array();
-            $daycnt = $dayIterator["wday"];
-            while ($daycnt < 14 && sizeof($sortedArray) < 7)
-            {                
-                $dayNumber = $dayIterator["wday"];
-                $timestamp = $dayIterator[0];
-    
-                $openTime = getDateWithTime($timestamp, $openingstandard[$dayNumber]['open']);
-                $closeTime = getDateWithTime($timestamp, $openingstandard[$dayNumber]['close']);
-    
-                $sortedArray[$daycnt]["open"] = $openTime;
-                $sortedArray[$daycnt]["close"] = $closeTime;
-    
-                $break= getBreakByWeekday($closedstandard, $dayIterator["wday"]);
-                //add break times
-                if($break){
-                    $breakStartTime = getDateWithTime($timestamp, $break["close_start"]);
-                    $breakEndTime = getDateWithTime($timestamp, $break["close_end"]);
-                    $sortedArray[$daycnt]["close_start"] = $breakStartTime;
-                    $sortedArray[$daycnt]["close_end"] = $breakEndTime;
-                }
-                //add 1 day to the date
-                $dayIterator = getdate(strtotime('+1 day', $dayIterator[0]));
-    
-                $daycnt++;
+            if ($pluginOptions['enable_ajax']){
+                //register script
+                wp_enqueue_script('moment.js', plugins_url().'/wppizza-openingtime-shortcode/js/moment.js', NULL, '0.3');    
+                wp_enqueue_script('openingwidget.js', plugins_url().'/wppizza-openingtime-shortcode/js/scripts.custom.openingwidget.js', NULL, '0.3');
+                               
+                $output = '<div class="pizza_opentimes_widget"></div><script type="text/javascript">'.PHP_EOL;
+                $output .= 'var openingstandard = '.json_encode($openingstandard).' ;'.PHP_EOL.' var closedstandard = '.json_encode($closedstandard).';'.PHP_EOL;
+                $output .= 'var otc_translations = '.json_encode($pluginOptions).';'.PHP_EOL ; 
+                $output .= 'var openingSpecial = '.json_encode($specialDays).';'.PHP_EOL ; 
+                
+                $output .= '</script>';
+                return $output;
             }
+            else {            
+                $dayIterator = getdate(current_time('timestamp'));
+                $debugContent = '';
     
-            $currentTimeLocal = current_time('timestamp');    
-            //get the next opening time
+                $sortedArray = array();
+                $daycnt = $dayIterator["wday"];
+                while ($daycnt < 14 && sizeof($sortedArray) < 7)
+                {                
+                    $dayNumber = $dayIterator["wday"];
+                    $timestamp = $dayIterator[0];
     
-            $isOpen = FALSE;   
-            $nextOpeningTime = 'dd';
-            //$debugContent.='time now is: '.$currentTimeLocal.' - ';
-            foreach($sortedArray as $k=>$v)
-            {                    
-                $openTime = $v['open'];
-                $closeTime = $v['close'];    
+                    $openTime = getDateWithTime($timestamp, $openingstandard[$dayNumber]['open']);
+                    $closeTime = getDateWithTime($timestamp, $openingstandard[$dayNumber]['close']);
     
-                //check if we are open
-                if($currentTimeLocal > $openTime && $currentTimeLocal < $closeTime)
-                {
-                    $isOpen = TRUE;
-                    $nextOpeningTime = '';
-
-                    //check if we have a break
-                    $breakStartTime = $v['close_start'];
-                    $breakEndTime = $v['close_end'];
-                    if ($currentTimeLocal > $breakStartTime && $currentTimeLocal < $breakEndTime){
-                        //we have a break
-                        $isOpen = FALSE;
-                        $nextOpeningTime = $breakEndTime;
+                    $sortedArray[$daycnt]["open"] = $openTime;
+                    $sortedArray[$daycnt]["close"] = $closeTime;
+    
+                    $break= getBreakByWeekday($closedstandard, $dayIterator["wday"]);
+                    //add break times
+                    if($break){
+                        $breakStartTime = getDateWithTime($timestamp, $break["close_start"]);
+                        $breakEndTime = getDateWithTime($timestamp, $break["close_end"]);
+                        $sortedArray[$daycnt]["close_start"] = $breakStartTime;
+                        $sortedArray[$daycnt]["close_end"] = $breakEndTime;
                     }
-
-                    break;
+                    //add 1 day to the date
+                    $dayIterator = getdate(strtotime('+1 day', $dayIterator[0]));
+    
+                    $daycnt++;
                 }
     
-                else if ($openTime > $currentTimeLocal && $openTime != $closeTime)
-                {                      
-                    $nextOpeningTime = $openTime;
-                    break;
-                }    
-                else 
-                {
-                    $debugContent .="compared: " .$currentTimeLocal.' to '.$openTime.' and '.$closeTime.PHP_EOL;
-                }
-            }
+                $currentTimeLocal = current_time('timestamp');    
+                //get the next opening time
     
-            $pluginOptions = get_option( 'wppizza_otc_name' );
-            $content ='nothing';
-            if($isOpen)
-            {
-                $content = $pluginOptions['titleopen'];
-            }
-            else 
-            {
-                $closedText = $pluginOptions['titleclosed'];
-                $dateText = formatDate($nextOpeningTime, $pluginOptions);
-    
-                if ((strpos($closedText, '%datestring%') !== false))
+                $isOpen = FALSE;   
+                $nextOpeningTime = 'dd';
+                //$debugContent.='time now is: '.$currentTimeLocal.' - ';
+                foreach($sortedArray as $k=>$v)
                 {                    
-                    $content = str_replace('%datestring%', $dateText, $closedText);                    
+                    $openTime = $v['open'];
+                    $closeTime = $v['close'];    
+    
+                    //check if we are open
+                    if($currentTimeLocal > $openTime && $currentTimeLocal < $closeTime)
+                    {
+                        $isOpen = TRUE;
+                        $nextOpeningTime = '';
+    
+                        //check if we have a break
+                        $breakStartTime = $v['close_start'];
+                        $breakEndTime = $v['close_end'];
+                        if ($currentTimeLocal > $breakStartTime && $currentTimeLocal < $breakEndTime){
+                            //we have a break
+                            $isOpen = FALSE;
+                            $nextOpeningTime = $breakEndTime;
+                        }
+    
+                        break;
+                    }
+    
+                    else if ($openTime > $currentTimeLocal && $openTime != $closeTime)
+                    {                      
+                        $nextOpeningTime = $openTime;
+                        break;
+                    }    
+                    else 
+                    {
+                        $debugContent .="compared: " .$currentTimeLocal.' to '.$openTime.' and '.$closeTime.PHP_EOL;
+                    }
+                }
+    
+    
+                $content ='nothing';
+                if($isOpen)
+                {
+                    $content = $pluginOptions['titleopen'];
                 }
                 else 
                 {
-                    $content = $closedText . $dateText;
-                }
-            }
+                    $closedText = $pluginOptions['titleclosed'];
+                    $dateText = formatDate($nextOpeningTime, $pluginOptions);
     
-            return '<div class="pizza_opentimes_widget">'.$content.'</div>';
+                    if ((strpos($closedText, '%datestring%') !== false))
+                    {                    
+                        $content = str_replace('%datestring%', $dateText, $closedText);                    
+                    }
+                    else 
+                    {
+                        $content = $closedText . $dateText;
+                    }
+                }
+    
+                return '<div class="pizza_opentimes_widget">'.$content.'</div>';
+            }
         }
     
+  
+         
     
         // Settings page
         if ( ! class_exists( 'WPPIZZA_OTC_SETTINGSPAGE' ) ){
@@ -230,6 +248,13 @@
                         'wppizza-otc-options', 
                         'setting_section_id'
                     ); 
+                    add_settings_field(
+                        'enable_ajax', 
+                        'Load the plugin with ajax. (useful if you use a caching plugin)', 
+                        array( $this, 'enable_ajax_callback' ), 
+                        'wppizza-otc-options', 
+                        'setting_section_id'
+                    ); 
                 }
     
                 /**
@@ -247,6 +272,8 @@
                         $new_input['titleclosed'] = $input['titleclosed'];
                     if(isset($input['translation_today']))
                         $new_input['translation_today'] = $input['translation_today'];
+                    if(isset($input['enable_ajax']))
+                        $new_input['enable_ajax'] = $input['enable_ajax'];
     
                     return $new_input;
                 }
@@ -277,7 +304,15 @@
                     printf('<textarea type="text" id="translation_today" name="wppizza_otc_name[translation_today]">%s</textarea>',
                         isset( $this->options['translation_today'] ) ? esc_attr( $this->options['translation_today']) : '');
                 }
-    
+
+                // Get the settings option array and print one of its values             
+                public function enable_ajax_callback()
+                {
+                    printf('<input type="checkbox" id="enable_ajax" name="wppizza_otc_name[enable_ajax]" value="true" %s />',
+                        isset( $this->options['enable_ajax'] ) ? 'checked="checked"' : '');
+                    //printf('<code>%s</code>', esc_attr(var_dump($this->options)));
+                }
+
                 /*******************************************************
                 *
                 *	[WPML : make localizations strings wpml compatible]
