@@ -1,5 +1,8 @@
 <?php
     
+<<<<<<< HEAD
+
+=======
     function formatDate($nextOpenTime, $options)
     {        
         $datestring = '';
@@ -46,5 +49,6 @@
         }
     }
     
+>>>>>>> origin/master
 ?>
 
